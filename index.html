@@ -1,0 +1,478 @@
+
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>分組競賽抽籤</title>
+    <!-- 引入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        /* 自定義樣式 */
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            color: white;
+            text-shadow: 0px 1px 2px rgba(0,0,0,0.5);
+            overflow-x: hidden; /* 防止水平滾動 */
+        }
+
+        #starry-sky-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            background: #000010;
+        }
+
+        .progress-bar-container {
+            background-color: rgba(0,0,0,0.3);
+            border-radius: 9999px;
+            overflow: hidden;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.4);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .progress-bar {
+            height: 100%;
+            border-radius: 9999px;
+            transition: width 0.5s ease-in-out;
+            background-image: linear-gradient(45deg, #b8860b, #ffd700, #f0e68c, #ffd700);
+            position: relative;
+            overflow: hidden;
+        }
+        /* 進度條閃亮效果 */
+        .progress-bar::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.4) 50%, rgba(255,255,255,0) 100%);
+            animation: shine 3s infinite linear;
+        }
+        @keyframes shine {
+            0% { transform: translateX(-150%); }
+            100% { transform: translateX(150%); }
+        }
+
+        .group-card {
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.3);
+            transition: transform 0.3s ease-out, box-shadow 0.3s ease-out;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            /* 動態藍綠色漸層 */
+            background: linear-gradient(135deg, #005f73, #0a9396, #94d2bd, #0a9396);
+            background-size: 300% 300%;
+            animation: gradientBG 12s ease infinite;
+        }
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .group-card:hover {
+            transform: translateY(-10px) scale(1.03);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.4);
+        }
+        .student-number {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            font-weight: 700;
+            font-size: 1.1rem;
+            color: white;
+            background-color: rgba(0,0,0,0.25);
+            transition: background-color 0.3s, color 0.3s, opacity 0.3s;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        .student-number.drawn {
+            opacity: 0.5;
+            background-color: rgba(0,0,0,0.5);
+            color: #aaa;
+            cursor: not-allowed;
+            border-color: rgba(255,255,255,0.1);
+        }
+        .draw-result-number {
+            font-size: 4rem;
+            font-weight: 700;
+            color: #f0e68c; /* 金色 */
+            text-shadow: 2px 2px 8px rgba(0,0,0,0.5);
+        }
+    </style>
+</head>
+<body class="text-white">
+    <canvas id="starry-sky-bg"></canvas>
+    <div id="app" class="min-h-screen p-4 sm:p-6 lg:p-8 relative">
+        <header class="text-center mb-8">
+            <h1 class="text-4xl md:text-5xl font-bold" style="text-shadow: 0 0 10px #fff, 0 0 20px #fff, 0 0 30px #0ff;">分組競賽儀表板</h1>
+        </header>
+
+        <!-- 初始畫面：檔案上傳 -->
+        <div id="upload-screen" class="max-w-xl mx-auto text-center p-8 bg-black/40 backdrop-blur-md rounded-xl shadow-lg border border-white/20">
+            <h2 class="text-2xl font-bold mb-4">歡迎使用！</h2>
+            <p class="text-gray-300 mb-6">請先載入您的分組名單檔案來開始。檔案格式應為純文字檔 (.txt)，每行代表一個分組。</p>
+            <label for="file-upload" class="inline-block bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-lg cursor-pointer transition duration-300 shadow-md border border-indigo-400">
+                選擇分組名單檔案 (.txt)
+            </label>
+            <input id="file-upload" type="file" class="hidden" accept=".txt">
+            <p class="mt-4 text-sm text-gray-400">
+                支援格式 (擇一)：<br>
+                <span class="font-mono">第一組:1,2,3</span> 或 <span class="font-mono">第一組<br>1<br>2<br>3</span>
+            </p>
+        </div>
+        
+        <!-- 主畫面：儀表板與抽籤功能 -->
+        <main id="main-content" class="hidden flex flex-col lg:flex-row gap-8">
+            <!-- 左側：抽籤功能 -->
+            <aside class="lg:w-1/4 xl:w-1/5">
+                <div class="bg-black/30 backdrop-blur-sm rounded-xl shadow-lg p-6 sticky top-8 border border-white/20">
+                    <h2 class="text-2xl font-bold mb-6 text-center">抽籤系統</h2>
+                    <button id="draw-button" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-4 px-4 rounded-lg text-xl transition duration-300 shadow-lg focus:outline-none focus:ring-4 focus:ring-green-300 disabled:bg-gray-600 disabled:cursor-not-allowed border border-green-300">
+                        開始抽籤
+                    </button>
+                    <div id="draw-results" class="mt-6">
+                        <h3 class="font-semibold text-lg text-center mb-4 border-b border-white/20 pb-2">本次抽出：</h3>
+                        <div id="results-container" class="flex flex-wrap justify-center items-center gap-4 min-h-[80px]">
+                            <p id="no-results-placeholder" class="text-gray-400">點擊按鈕開始抽籤</p>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- 右側：分組儀表板 -->
+            <div id="dashboard" class="flex-1 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                <!-- 分組卡片將會動態生成於此 -->
+            </div>
+        </main>
+
+    </div>
+
+    <script>
+        // --- 星空背景 ---
+        const canvas = document.getElementById('starry-sky-bg');
+        const ctx = canvas.getContext('2d');
+        let stars;
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+
+        function createStars() {
+            stars = [];
+            const starCount = Math.floor((canvas.width * canvas.height) / 2000); // 根據螢幕大小調整星星數量
+            for (let i = 0; i < starCount; i++) {
+                stars.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    radius: Math.random() * 1.5 + 0.5,
+                    vx: Math.random() * 0.2 - 0.1,
+                    vy: Math.random() * 0.2 - 0.1,
+                    opacity: Math.random() * 0.5 + 0.5
+                });
+            }
+        }
+
+        function animateStars() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            stars.forEach(star => {
+                star.x += star.vx;
+                star.y += star.vy;
+
+                if (star.x < 0 || star.x > canvas.width) star.vx = -star.vx;
+                if (star.y < 0 || star.y > canvas.height) star.vy = -star.vy;
+
+                ctx.beginPath();
+                ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(255, 255, 255, ${star.opacity})`;
+                ctx.fill();
+            });
+            requestAnimationFrame(animateStars);
+        }
+
+        window.addEventListener('resize', () => {
+            resizeCanvas();
+            createStars();
+        });
+
+        // 初始化星空
+        resizeCanvas();
+        createStars();
+        animateStars();
+
+
+        // --- 儀表板主要邏輯 ---
+
+        // 全域狀態管理
+        let state = {
+            groups: [],
+        };
+
+        // DOM 元素參考
+        const fileUploadInput = document.getElementById('file-upload');
+        const uploadScreen = document.getElementById('upload-screen');
+        const mainContent = document.getElementById('main-content');
+        const dashboard = document.getElementById('dashboard');
+        const drawButton = document.getElementById('draw-button');
+        const resultsContainer = document.getElementById('results-container');
+        const noResultsPlaceholder = document.getElementById('no-results-placeholder');
+
+        // --- 事件監聽 ---
+        fileUploadInput.addEventListener('change', handleFileUpload);
+        drawButton.addEventListener('click', handleDraw);
+
+        /**
+         * 處理檔案上傳事件
+         * @param {Event} event - 檔案輸入變更事件
+         */
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) {
+                console.warn('請選擇一個檔案！');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const content = e.target.result;
+                    parseData(content);
+                    initializeApp();
+                } catch (error) {
+                    console.error(`讀取或解析檔案時發生錯誤：${error.message}`);
+                }
+            };
+            reader.onerror = () => {
+                console.error('讀取檔案時發生錯誤！');
+            };
+            reader.readAsText(file);
+        }
+        
+        /**
+         * 解析純文字資料並更新 state
+         * @param {string} textData - 從檔案讀取的文字內容
+         */
+        function parseData(textData) {
+            const lines = textData.trim().split(/\r?\n/).filter(line => line.trim() !== '');
+            if (lines.length === 0) {
+                throw new Error("檔案是空的或格式不正確。");
+            }
+
+            const isColonFormat = lines[0].includes(':') || lines[0].includes('：');
+
+            if (isColonFormat) {
+                // 處理 "組名:座號,座號" 格式
+                const groupsData = lines.map((line, index) => {
+                    const parts = line.split(/:|：/);
+                    if (parts.length !== 2) {
+                        throw new Error(`第 ${index + 1} 行格式錯誤，請確認格式為 "組名:座號,座號..."`);
+                    }
+                    const groupName = parts[0].trim();
+                    const studentNumbers = parts[1].split(',').map(num => parseInt(num.trim())).filter(num => !isNaN(num));
+                    
+                    if (!groupName || studentNumbers.length === 0) {
+                        throw new Error(`第 ${index + 1} 行的組名或座號無效`);
+                    }
+
+                    return {
+                        id: index,
+                        name: groupName,
+                        score: 0,
+                        students: [...studentNumbers],
+                        availableStudents: [...studentNumbers],
+                    };
+                });
+                state.groups = groupsData;
+            } else {
+                // 處理組名與座號換行的格式
+                const groupsData = [];
+                let currentGroup = null;
+                let groupIdCounter = 0;
+
+                lines.forEach(line => {
+                    const trimmedLine = line.trim();
+                    
+                    if (/^\d+$/.test(trimmedLine)) {
+                        if (!currentGroup) {
+                            throw new Error("檔案格式錯誤：必須先有組名才能添加座號。");
+                        }
+                        currentGroup.students.push(parseInt(trimmedLine));
+                    } else {
+                        if (currentGroup && currentGroup.students.length > 0) {
+                           groupsData.push(currentGroup);
+                        }
+                        currentGroup = {
+                            id: groupIdCounter++,
+                            name: trimmedLine,
+                            score: 0,
+                            students: [],
+                        };
+                    }
+                });
+
+                if (currentGroup && currentGroup.students.length > 0) {
+                    groupsData.push(currentGroup);
+                }
+
+                if (groupsData.length === 0) {
+                    throw new Error("無法從檔案中解析出任何有效的組別。");
+                }
+
+                groupsData.forEach(group => {
+                    group.availableStudents = [...group.students];
+                });
+
+                state.groups = groupsData;
+            }
+        }
+
+        /**
+         * 初始化應用程式介面
+         */
+        function initializeApp() {
+            uploadScreen.classList.add('hidden');
+            mainContent.classList.remove('hidden');
+            renderDashboard();
+            updateDrawButtonState();
+        }
+        
+        /**
+         * 渲染整個儀表板
+         */
+        function renderDashboard() {
+            dashboard.innerHTML = '';
+            state.groups.forEach(group => {
+                const groupCard = document.createElement('div');
+                groupCard.className = 'group-card flex flex-col';
+                groupCard.innerHTML = `
+                    <h3 class="text-2xl font-bold text-center mb-4">${group.name}</h3>
+                    
+                    <div class="flex items-center justify-center gap-4 mb-4">
+                        <button class="score-btn bg-red-500/80 hover:bg-red-600 border border-red-300/80 text-white w-10 h-10 rounded-full font-bold text-2xl flex items-center justify-center transition shadow-md" data-group-id="${group.id}" data-action="decrease">-</button>
+                        <span id="score-display-${group.id}" class="text-xl font-bold w-12 text-center">${group.score}%</span>
+                        <button class="score-btn bg-blue-500/80 hover:bg-blue-600 border border-blue-300/80 text-white w-10 h-10 rounded-full font-bold text-2xl flex items-center justify-center transition shadow-md" data-group-id="${group.id}" data-action="increase">+</button>
+                    </div>
+
+                    <div class="progress-bar-container w-full h-5 mb-6">
+                        <div id="progress-bar-${group.id}" class="progress-bar" style="width: ${group.score}%;"></div>
+                    </div>
+                    
+                    <div class="flex-1 grid grid-cols-4 sm:grid-cols-5 gap-3">
+                        ${group.students.map(studentNum => `
+                            <div class="student-number ${!group.availableStudents.includes(studentNum) ? 'drawn' : ''}">
+                                ${studentNum}
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+                dashboard.appendChild(groupCard);
+            });
+
+            document.querySelectorAll('.score-btn').forEach(button => {
+                button.addEventListener('click', handleScoreChange);
+            });
+        }
+        
+        /**
+         * 處理分數變更
+         */
+        function handleScoreChange(event) {
+            const button = event.currentTarget;
+            const groupId = parseInt(button.dataset.groupId);
+            const action = button.dataset.action;
+            
+            const group = state.groups.find(g => g.id === groupId);
+            if (!group) return;
+
+            if (action === 'increase') {
+                group.score = Math.min(100, group.score + 10);
+            } else if (action === 'decrease') {
+                group.score = Math.max(0, group.score - 10);
+            }
+
+            updateGroupUI(group);
+        }
+
+        /**
+         * 僅更新特定組別的 UI (分數和進度條)
+         */
+        function updateGroupUI(group) {
+             const scoreDisplay = document.getElementById(`score-display-${group.id}`);
+             const progressBar = document.getElementById(`progress-bar-${group.id}`);
+             if (scoreDisplay) scoreDisplay.textContent = `${group.score}%`;
+             if (progressBar) progressBar.style.width = `${group.score}%`;
+        }
+        
+        /**
+         * 處理抽籤邏輯
+         */
+        function handleDraw() {
+            let hasDrawn = false;
+            const drawnResults = state.groups.map(group => {
+                if (group.availableStudents.length === 0) {
+                    return { name: group.name, number: null };
+                }
+                
+                hasDrawn = true;
+                const randomIndex = Math.floor(Math.random() * group.availableStudents.length);
+                const drawnNumber = group.availableStudents[randomIndex];
+                
+                group.availableStudents.splice(randomIndex, 1);
+                
+                return { name: group.name, number: drawnNumber };
+            });
+
+            if (!hasDrawn) {
+                console.warn('所有組別的座號都已經抽完囉！');
+                return;
+            }
+
+            displayDrawResults(drawnResults);
+            renderDashboard();
+            updateDrawButtonState();
+        }
+
+        /**
+         * 顯示抽籤結果
+         */
+        function displayDrawResults(results) {
+            noResultsPlaceholder.classList.add('hidden');
+            resultsContainer.innerHTML = '';
+            results.forEach(result => {
+                const resultDiv = document.createElement('div');
+                resultDiv.className = 'text-center';
+                resultDiv.innerHTML = `
+                    <p class="text-sm font-semibold">${result.name}</p>
+                    <p class="draw-result-number leading-none">${result.number !== null ? result.number : '—'}</p>
+                `;
+                resultsContainer.appendChild(resultDiv);
+            });
+        }
+        
+        /**
+         * 檢查並更新抽籤按鈕的禁用狀態
+         */
+        function updateDrawButtonState() {
+            const totalAvailable = state.groups.reduce((sum, group) => sum + group.availableStudents.length, 0);
+            if (totalAvailable === 0) {
+                drawButton.disabled = true;
+                drawButton.textContent = '全部抽完';
+            } else {
+                drawButton.disabled = false;
+                drawButton.textContent = '開始抽籤';
+            }
+        }
+    </script>
+</body>
+</html>
+
